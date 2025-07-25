@@ -95,9 +95,9 @@
       (setq end (point))
       (let* ((block-text (buffer-substring-no-properties start end))
              (lines (split-string block-text "\n" t))
-             (first-line (car lines))
-             (layer-name (cadr (cl-remove-if #'string-empty-p
-                                             (split-string first-line "[ \t()]+"))))
+              (first-line (car lines))
+              (layer-name (and (string-match "(deflayer\\s-+\\([^)\s-]+\\)" first-line)
+                              (match-string 1 first-line)))
              (body-lines (butlast (cdr lines) 1))
              ;; Parse rows, ignoring empty lines
              (rows (cl-loop for line in body-lines
