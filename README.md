@@ -9,6 +9,10 @@ Major mode for editing Kanata .kbd configuration files in Emacs.
 * Commenting and uncommenting lines or regions with `M-;`.
 * Align keys within a `deflayer` block using `kanata-kbd-align-deflayer` (`C-c C-a`).
 
+## Screenshot
+
+<img width="1744" height="1091" alt="image" src="https://github.com/user-attachments/assets/a4dd90be-71c6-4051-b604-edb0628ebe70" />
+
 ## Installation
 
 1. Place `kanata-kbd-mode.el` in your Emacs load-path.
