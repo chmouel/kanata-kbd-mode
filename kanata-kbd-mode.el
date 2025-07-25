@@ -96,7 +96,8 @@
       (let* ((block-text (buffer-substring-no-properties start end))
              (lines (split-string block-text "\n" t))
              (first-line (car lines))
-             (layer-name (cadr (split-string first-line "[ \t()]+")))
+             (layer-name (cadr (cl-remove-if #'string-empty-p
+                                             (split-string first-line "[ \t()]+"))))
              (body-lines (butlast (cdr lines) 1))
              ;; Parse rows, ignoring empty lines
              (rows (cl-loop for line in body-lines
@@ -123,7 +124,7 @@
                           " ")))
                (new-text
                 (concat "(deflayer " layer-name "\n"
-                        (mapconcat (lambda (line) (concat "  " (string-trim-right line)))
+                        (mapconcat (lambda (line) (concat "  " line))
                                    formatted-rows
                                    "\n")
                         "\n)")))
