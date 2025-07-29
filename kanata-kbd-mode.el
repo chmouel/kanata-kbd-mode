@@ -89,42 +89,48 @@
         (user-error "Not in a deflayer block"))
       (setq start (match-beginning 0))
       (goto-char start)
-      (forward-sexp)
-      (setq end (point))
+      (with-syntax-table kanata-kbd-mode-syntax-table
+        (let ((end-pos (scan-sexps (point) 1)))
+          (unless end-pos
+            (user-error "Could not find end of deflayer block."))
+          (setq end end-pos)))
+
       (let* ((block-text (buffer-substring-no-properties start end))
              (lines (split-string block-text "\n" t))
-              (first-line (car lines))
-              (layer-name (and (string-match "(deflayer\\s-+\\([^)\s-]+\\)" first-line)
+             (first-line (car lines))
+             (layer-name (and (string-match "(deflayer\\s-+\\([a-zA-Z0-9_-]+\\)" first-line)
                               (match-string 1 first-line)))
              (body-lines (butlast (cdr lines) 1))
-             ;; Parse rows, ignoring empty lines
-             (rows (cl-loop for line in body-lines
-                            for trimmed = (string-trim line)
-                            when (not (string-empty-p trimmed))
-                            collect (split-string trimmed "[ \t]+")))
-             ;; Calculate max widths for each column
-             (num-columns (if rows (apply #'max (mapcar #'length rows)) 0))
+             (parsed-lines (cl-loop for line in body-lines
+                                    for trimmed = (string-trim line)
+                                    collect
+                                    (if (or (string-empty-p trimmed)
+                                            (string-prefix-p ";;" trimmed))
+                                        line
+                                      (split-string trimmed "[ \t]+"))))
+             (key-rows (cl-remove-if-not #'listp parsed-lines))
+             (num-columns (if key-rows (apply #'max (mapcar #'length key-rows)) 0))
              (max-widths (make-list num-columns 0)))
-        (dolist (row rows)
+        (dolist (row key-rows)
           (dotimes (i (length row))
             (setf (nth i max-widths)
                   (max (nth i max-widths) (length (nth i row))))))
-        ;; Format the new text
-        (let* ((formatted-rows
-                (cl-loop for row in rows
+        (let* ((formatted-lines
+                (cl-loop for line-data in parsed-lines
                          collect
-                         (string-join
-                          (cl-loop for item in row
-                                   for i from 0
-                                   collect
-                                   (let ((width (nth i max-widths)))
-                                     (format (concat "%-" (number-to-string width) "s") item)))
-                          " ")))
+                         (if (listp line-data)
+                             (concat "  "
+                                     (string-join
+                                      (cl-loop for item in line-data
+                                               for i from 0
+                                               collect
+                                               (let ((width (nth i max-widths)))
+                                                 (format (concat "%-" (number-to-string width) "s") item)))
+                                      " "))
+                           line-data)))
                (new-text
-                (concat "(deflayer " layer-name "\n"
-                        (mapconcat (lambda (line) (concat "  " line))
-                                   formatted-rows
-                                   "\n")
+                (concat "(deflayer " (or layer-name "") "\n"
+                        (string-join formatted-lines "\n")
                         "\n)")))
           (delete-region start end)
           (insert new-text))))))
@@ -255,7 +261,7 @@
      (2 font-lock-constant-face))
     
     ;; Strings and numbers
-    ("\"\\(?:\\\\.[^\"]*\\|[^\"]\\)*\"" . font-lock-string-face)
+    ("\"\\(?:\\\\.\\S-*\\|[^\"]\\)*\"" . font-lock-string-face)
     ("\\b[0-9]+\\b" . font-lock-string-face))
   "Font lock keywords for `kanata-kbd-mode`.")
 
@@ -272,7 +278,7 @@
   (define-key kanata-kbd-mode-map (kbd "C-c C-a") 'kanata-kbd-align-deflayer))
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.kbd\\'" . kanata-kbd-mode))
+(add-to-list 'auto-mode-alist '("\\.kbd\\\'" . kanata-kbd-mode))
 
 (provide 'kanata-kbd-mode)
 
