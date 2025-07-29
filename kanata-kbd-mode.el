@@ -44,8 +44,6 @@
 
 (defvar kanata-kbd-mode-syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?\; "<" table)
-    (modify-syntax-entry ?\n ">" table)
     (modify-syntax-entry ?# ". 14" table)
     (modify-syntax-entry ?| ". 23" table)
     (modify-syntax-entry ?\( "()" table)
