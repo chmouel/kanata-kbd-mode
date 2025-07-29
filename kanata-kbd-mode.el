@@ -54,87 +54,11 @@
     (modify-syntax-entry ?& "w" table)
     (modify-syntax-entry ?$ "w" table)
     (modify-syntax-entry ?! "w" table)
+    (modify-syntax-entry ?\\ "w" table)
+    (modify-syntax-entry ?\[ "w" table)
+    (modify-syntax-entry ?\] "w" table)
     table)
   "Syntax table for `kanata-kbd-mode`.")
-
-(defun kanata-kbd-indent-line ()
-  "Indent current line for kanata-kbd-mode."
-  (let ((indent 0))
-    (save-excursion
-      (beginning-of-line)
-      (let ((paren-depth 0))
-        (save-excursion
-          (goto-char (point-min))
-          (while (< (point) (line-beginning-position))
-            (cond
-             ((looking-at "(") (setq paren-depth (1+ paren-depth)))
-             ((looking-at ")") (setq paren-depth (1- paren-depth))))
-            (forward-char)))
-        (setq indent (* paren-depth 2))))
-    (indent-line-to indent)))
-
-(defun kanata-kbd-comment-dwim (arg)
-  "Comment or uncomment region or line intelligently."
-  (interactive "*P")
-  (if (use-region-p)
-      (comment-or-uncomment-region (region-beginning) (region-end))
-    (comment-or-uncomment-region (line-beginning-position) (line-end-position))))
-
-(defun kanata-kbd-align-deflayer ()
-  "Align the keys within a deflayer block."
-  (interactive)
-  (save-excursion
-    (let (start end)
-      (unless (re-search-backward "(deflayer" nil t)
-        (user-error "Not in a deflayer block"))
-      (setq start (match-beginning 0))
-      (goto-char start)
-      (with-syntax-table kanata-kbd-mode-syntax-table
-        (let ((end-pos (scan-sexps (point) 1)))
-          (unless end-pos
-            (user-error "Could not find end of deflayer block."))
-          (setq end end-pos)))
-
-      (let* ((block-text (buffer-substring-no-properties start end))
-             (lines (split-string block-text "\n" t))
-             (first-line (car lines))
-             (layer-name (and (string-match "(deflayer\\s-+\\([a-zA-Z0-9_-]+\\)" first-line)
-                              (match-string 1 first-line)))
-             (body-lines (butlast (cdr lines) 1))
-             (parsed-lines (cl-loop for line in body-lines
-                                    for trimmed = (string-trim line)
-                                    collect
-                                    (if (or (string-empty-p trimmed)
-                                            (string-prefix-p ";;" trimmed))
-                                        line
-                                      (split-string trimmed "[ \t]+"))))
-             (key-rows (cl-remove-if-not #'listp parsed-lines))
-             (num-columns (if key-rows (apply #'max (mapcar #'length key-rows)) 0))
-             (max-widths (make-list num-columns 0)))
-        (dolist (row key-rows)
-          (dotimes (i (length row))
-            (setf (nth i max-widths)
-                  (max (nth i max-widths) (length (nth i row))))))
-        (let* ((formatted-lines
-                (cl-loop for line-data in parsed-lines
-                         collect
-                         (if (listp line-data)
-                             (concat "  "
-                                     (string-join
-                                      (cl-loop for item in line-data
-                                               for i from 0
-                                               collect
-                                               (let ((width (nth i max-widths)))
-                                                 (format (concat "%-" (number-to-string width) "s") item)))
-                                      " "))
-                           line-data)))
-               (new-text
-                (concat "(deflayer " (or layer-name "") "\n"
-                        (string-join formatted-lines "\n")
-                        "\n)")))
-          (delete-region start end)
-          (insert new-text))))))
-
 
 (defconst kanata-kbd-top-level-directives
   '("defcfg" "defsrc" "deflayer" "deflayermap" "defalias" "defvar"
@@ -261,9 +185,87 @@
      (2 font-lock-constant-face))
     
     ;; Strings and numbers
-    ("\"\\(?:\\\\.\\S-*\\|[^\"]\\)*\"" . font-lock-string-face)
+    ("\"\\(?:\\\\.\\|[^\"]\\)*\"" . font-lock-string-face)
     ("\\b[0-9]+\\b" . font-lock-string-face))
   "Font lock keywords for `kanata-kbd-mode`.")
+
+(defun kanata-kbd-indent-line ()
+  "Indent current line for kanata-kbd-mode."
+  (let ((indent 0))
+    (save-excursion
+      (beginning-of-line)
+      (let ((paren-depth 0))
+        (save-excursion
+          (goto-char (point-min))
+          (while (< (point) (line-beginning-position))
+            (cond
+             ((looking-at "(") (setq paren-depth (1+ paren-depth)))
+             ((looking-at ")") (setq paren-depth (1- paren-depth))))
+            (forward-char)))
+        (setq indent (* paren-depth 2))))
+    (indent-line-to indent)))
+
+(defun kanata-kbd-comment-dwim (arg)
+  "Comment or uncomment region or line intelligently."
+  (interactive "*P")
+  (if (use-region-p)
+      (comment-or-uncomment-region (region-beginning) (region-end))
+    (comment-or-uncomment-region (line-beginning-position) (line-end-position))))
+
+(defun kanata-kbd-align-deflayer ()
+  "Align the keys within a deflayer block."
+  (interactive)
+  (save-excursion
+    (let (start end)
+      (unless (re-search-backward "(deflayer" nil t)
+        (user-error "Not in a deflayer block"))
+      (setq start (match-beginning 0))
+      (goto-char start)
+      (with-syntax-table kanata-kbd-mode-syntax-table
+        (let ((end-pos (scan-sexps (point) 1)))
+          (unless end-pos
+            (user-error "Could not find end of deflayer block."))
+          (setq end end-pos)))
+
+      (let* ((block-text (buffer-substring-no-properties start end))
+             (lines (split-string block-text "\n" t))
+             (first-line (car lines))
+             (layer-name (and (string-match "(deflayer\\s-+\\([a-zA-Z0-9_-]+\\)" first-line)
+                              (match-string 1 first-line)))
+             (body-lines (butlast (cdr lines) 1))
+             (parsed-lines (cl-loop for line in body-lines
+                                    for trimmed = (string-trim line)
+                                    collect
+                                    (if (or (string-empty-p trimmed)
+                                            (string-prefix-p ";;" trimmed))
+                                        line
+                                      (split-string trimmed "[ \t]+"))))
+             (key-rows (cl-remove-if-not #'listp parsed-lines))
+             (num-columns (if key-rows (apply #'max (mapcar #'length key-rows)) 0))
+             (max-widths (make-list num-columns 0)))
+        (dolist (row key-rows)
+          (dotimes (i (length row))
+            (setf (nth i max-widths)
+                  (max (nth i max-widths) (length (nth i row))))))
+        (let* ((formatted-lines
+                (cl-loop for line-data in parsed-lines
+                         collect
+                         (if (listp line-data)
+                             (concat "  "
+                                     (string-join
+                                      (cl-loop for item in line-data
+                                               for i from 0
+                                               collect
+                                               (let ((width (nth i max-widths)))
+                                                 (format (concat "%-" (number-to-string width) "s") item)))
+                                      " "))
+                           line-data)))
+               (new-text
+                (concat "(deflayer " (or layer-name "") "\n"
+                        (string-join formatted-lines "\n")
+                        "\n)")))
+          (delete-region start end)
+          (insert new-text))))))
 
 ;;;###autoload
 (define-derived-mode kanata-kbd-mode prog-mode "KanataKBD"
