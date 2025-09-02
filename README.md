@@ -30,6 +30,13 @@ Or using `use-package`:
   :mode ("\\.kbd\\'" . kanata-kbd-mode))
 ```
 
+For Emacs 29+ you can use `use-package-vc` or for Emacs 30:
+```elisp
+(use-package kanata-kbd-mode
+  :vc (:url "https://github.com/chmouel/kanata-kbd-mode/" :rev :newest)
+  )
+```
+
 ## What is Kanata?
 
 Kanata is a versatile software keyboard remapper that works on Windows, macOS,
